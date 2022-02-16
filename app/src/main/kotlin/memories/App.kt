@@ -10,6 +10,6 @@ class App {
         }
 }
 
-fun main() {
-    println(App().greeting)
+fun main(args: Array<String>) {
+    println(args.toList())
 }
