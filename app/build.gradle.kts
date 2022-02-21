@@ -30,6 +30,9 @@ dependencies {
     // Align versions of all Kotlin components
     implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
 
+    // Fake data
+    implementation("io.github.serpro69:kotlin-faker:1.9.0")
+
     // Use the Kotlin JDK 8 standard library.
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 

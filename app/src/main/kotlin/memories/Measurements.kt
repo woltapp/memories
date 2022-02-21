@@ -5,7 +5,7 @@ import java.lang.management.ManagementFactory
 object MBeans {
 
     val threads = ManagementFactory.getThreadMXBean()
-    val sunThreads = (threads as? com.sun.management.ThreadMXBean)
+    val sunThreads: com.sun.management.ThreadMXBean? = ManagementFactory.getPlatformMXBean(com.sun.management.ThreadMXBean::class.java)
 
     fun currentThreadAllocations(): Long {
         return sunThreads?.currentThreadAllocatedBytes ?: -1
