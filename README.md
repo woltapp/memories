@@ -20,13 +20,15 @@ Two ways to look at memory: allocation rate & largest working set
 
 ## What is garbage collection?
 
-- What are root sets, an image + explanation
+- Automated way to reclaim one resource: memory
+  - We might still run out of other resources, say, sockets or file descriptors
+- TODO What are root sets, an image + explanation
 
 ## Basic error cases
 
 ### Running out of memory
 
-In order to get the dreaded `java.lang.OutOfMemoryError`, our _working set_ 
+In order to get the dreaded `java.lang.OutOfMemoryError`, our _working set_ needs to be 
 
 #### Memory Leaks
 - Leak Canary can help identifying leaks with Android
@@ -43,7 +45,13 @@ You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android
 - 
 
 ### Other causes
+#### JVM
+- Metaspace
+- GC memory
+- "Direct memory" allocated through [ByteBuffer#allocateDirect](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html#allocateDirect(int)), which is used by some libraries like NIO.
 - Native memory on JVM
+  - Memory GC uses for bookkeeping
+  - 
 - ART probably has various resources
 
 
@@ -55,6 +63,14 @@ You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android
 ## Tools
 
 ### jmap
+
+For taking snapshots of heap, or heap dumps as they're more commonly called, command line tool `jmap` can be used.
+To dump all objects that are still reachable, that is objects that GC would not free:
+```
+jmap -dump:live,format=b,file=heap_dump_$(date "+%Y%m%d_%H%M%S").bin <PID>
+```
+Change `live` to `all` to dump all objects. This is rarely needed, but is useful when trying to figure out issues
+related to [`Reference`s](#references).
 
 ### Java Mission Control
 
@@ -83,8 +99,9 @@ more heavy-weight and correct.
 ### JVM Object Layout
 
 ## References
-Reference and ReferenceQueue
+JDK `Reference`-class' subclasses together with [ReferenceQueue](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ref/ReferenceQueue.html) provide a way to implement caches and freeing of non-memory resources.
 
 - [WeakReference](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ref/WeakReference.html) is a reference that does not prevent the referent from being collected.
 - [SoftReference](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ref/SoftReference.html) is also a reference that does not prevent the referent from being collected. Difference to `WeakReference` is that GCs have some heuristics that make recently used or created and thus `SoftReference` can be used to implement in-memory caches that will be freed if there's need for more memory.   
 - [PhantomReference](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ref/PhantomReference.html) is a reference that is only enqueued after the referred to object has been collected. It can be used to free other resources such a file descriptors or memory allocations after the object that has been using is gone.
+- [ReferenceQueue](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ref/ReferenceQueue.html) is a queue where the references will end up after the thing they refer to has been freed. This means that when `ReferenceQueue#poll` returns a reference, the object it refers to has been freed, and we're free to, say, close the file descriptor the object used.
