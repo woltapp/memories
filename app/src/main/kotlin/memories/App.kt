@@ -7,13 +7,6 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-class App {
-    val greeting: String
-        get() {
-            return "Hello World!"
-        }
-}
-
 private val cpuCount = Runtime.getRuntime().availableProcessors()
 
 fun main(args: Array<String>) {
@@ -23,9 +16,11 @@ fun main(args: Array<String>) {
 
 
 fun setup(): List<Allocator> {
-    return (1..8 * cpuCount).map {
-        createShortLivedObjectsAllocator()
-    } + (1 .. cpuCount).map {
+    return (1..6 * cpuCount).map {
+        createShortLivedObjectsAllocator(bigArraySize, 13)
+    } + (1..cpuCount).map {
+        createShortLivedObjectsAllocator(memories.humongousArraySize, 103)
+    } + (1..cpuCount).map {
         createLongLivedObjectsAllocator()
     }
 }
@@ -41,8 +36,9 @@ fun waitForStop(stuffToWait: List<Allocator>) {
 }
 
 private val counter = AtomicInteger(0)
+private const val sleepTime = 7L
 
-class Allocator(private val allocateLoop: () -> Unit) {
+class Allocator(private val sleepTime: Long, private val allocateLoop: () -> Unit) {
 
     private val stop = AtomicBoolean(false)
     private val thread: Thread
@@ -53,7 +49,7 @@ class Allocator(private val allocateLoop: () -> Unit) {
             while (!stop.get()) {
                 allocateLoop()
                 try {
-                    Thread.sleep(50)
+                    Thread.sleep(sleepTime)
                 } catch (_: InterruptedException) {
 
                 }
@@ -76,11 +72,14 @@ class Allocator(private val allocateLoop: () -> Unit) {
 }
 
 private val smallArraySize = 23
-private val bigArraySize = 63233
 
-fun createShortLivedObjectsAllocator(): Allocator {
-    return Allocator {
-        val bytes = ByteArray(bigArraySize)
+// Let's use some humongous regions
+private val humongousArraySize = 2097152
+private val bigArraySize = 65531
+
+fun createShortLivedObjectsAllocator(size: Int, sleepTime: Long): Allocator {
+    return Allocator(sleepTime) {
+        val bytes = ByteArray(size)
         ThreadLocalRandom.current().nextBytes(bytes)
         SimpleBlackHole.consume(bytes)
     }
@@ -88,35 +87,37 @@ fun createShortLivedObjectsAllocator(): Allocator {
 
 fun createLongLivedObjectsAllocator(): Allocator {
     val treeLevelSize = 32
-    val releaseCycle = 64
-    val initializer: (Int) -> Array<ByteArray?> = {
-        Array(treeLevelSize) {
-            null
-        }
-    }
-    val arr: Array<Array<Array<Array<ByteArray?>>>> = Array(treeLevelSize) {
-        Array(treeLevelSize) {
-            Array(treeLevelSize, initializer)
-        }
-    }
-    var loopCounter = 0
+    val releaseCycle = 229
 
-    fun forRootArrays(arr: Array<Array<Array<Array<ByteArray?>>>>, arrConsumer: (Array<Array<ByteArray?>>) -> Unit) {
-        arr.forEach {
-            it.forEach { someArrays ->
-                arrConsumer(someArrays)
+    val topLevelInitializer: (Int) -> Array<Array<Array<ByteArray?>>> = {
+        Array(treeLevelSize) {
+            Array(treeLevelSize) {
+                Array(treeLevelSize) {
+                    null
+                }
             }
         }
     }
 
-    return Allocator {
-        forRootArrays(arr) {
-            it.forEach { arrayOfByteArrays ->
-                arrayOfByteArrays.forEachIndexed { index, _ ->
-                    val bytes = ByteArray(smallArraySize)
-                    ThreadLocalRandom.current().nextBytes(bytes)
-                    arrayOfByteArrays[index] = bytes
+    val arr: Array<Array<Array<Array<ByteArray?>>>> = Array(treeLevelSize, topLevelInitializer)
+    var loopCounter = 0
+
+    fun forRootArrays(arr: Array<Array<Array<Array<ByteArray?>>>>, arrConsumer: (Array<ByteArray?>) -> Unit) {
+        arr.forEach {
+            it.forEach {
+                it.forEach { maybeByteArrays ->
+                    arrConsumer(maybeByteArrays)
                 }
+            }
+        }
+    }
+
+    return Allocator(7L) {
+        forRootArrays(arr) { arrayOfByteArrays ->
+            arrayOfByteArrays.forEachIndexed { index, _ ->
+                val bytes = ByteArray(smallArraySize)
+                ThreadLocalRandom.current().nextBytes(bytes)
+                arrayOfByteArrays[index] = bytes
             }
         }
         forRootArrays(arr) {
@@ -124,10 +125,8 @@ fun createLongLivedObjectsAllocator(): Allocator {
         }
         if (loopCounter++ == releaseCycle) {
             loopCounter = 0
-            forRootArrays(arr) {
-                it.forEachIndexed { index, _ ->
-                    it[index] = initializer(index)
-                }
+            arr.forEachIndexed { index, _ ->
+                arr[index] = topLevelInitializer(index)
             }
         }
     }

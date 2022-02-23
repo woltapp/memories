@@ -64,6 +64,7 @@ You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android
 
 ### Garbage collection logs
 
+On JVM 9+, use `-Xlog:gc*:file=<gc-file-path>`
 -Xlog:gc*:file=<file-path>
 
 -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps
