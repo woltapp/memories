@@ -87,33 +87,48 @@ fun createShortLivedObjectsAllocator(): Allocator {
 }
 
 fun createLongLivedObjectsAllocator(): Allocator {
-    val treeLevelSize = 64
-    val arr = Array(treeLevelSize) {
+    val treeLevelSize = 32
+    val releaseCycle = 64
+    val initializer: (Int) -> Array<ByteArray?> = {
         Array(treeLevelSize) {
-            Array<ByteArray?>(treeLevelSize) {
-                null
-            }
+            null
         }
     }
+    val arr: Array<Array<Array<Array<ByteArray?>>>> = Array(treeLevelSize) {
+        Array(treeLevelSize) {
+            Array(treeLevelSize, initializer)
+        }
+    }
+    var loopCounter = 0
 
-    fun forRootArrays(arr: Array<Array<Array<ByteArray?>>>, arrConsumer: (Array<ByteArray?>) -> Unit) {
+    fun forRootArrays(arr: Array<Array<Array<Array<ByteArray?>>>>, arrConsumer: (Array<Array<ByteArray?>>) -> Unit) {
         arr.forEach {
-            it.forEach { maybeByteArrays ->
-                arrConsumer(maybeByteArrays)
+            it.forEach { someArrays ->
+                arrConsumer(someArrays)
             }
         }
     }
 
     return Allocator {
         forRootArrays(arr) {
-            it.forEachIndexed { index, _ ->
-                val bytes = ByteArray(smallArraySize)
-                ThreadLocalRandom.current().nextBytes(bytes)
-                it[index] = bytes
+            it.forEach { arrayOfByteArrays ->
+                arrayOfByteArrays.forEachIndexed { index, _ ->
+                    val bytes = ByteArray(smallArraySize)
+                    ThreadLocalRandom.current().nextBytes(bytes)
+                    arrayOfByteArrays[index] = bytes
+                }
             }
         }
         forRootArrays(arr) {
             SimpleBlackHole.consume(it)
+        }
+        if (loopCounter++ == releaseCycle) {
+            loopCounter = 0
+            forRootArrays(arr) {
+                it.forEachIndexed { index, _ ->
+                    it[index] = initializer(index)
+                }
+            }
         }
     }
 }
