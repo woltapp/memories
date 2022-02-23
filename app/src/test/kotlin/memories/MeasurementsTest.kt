@@ -3,32 +3,7 @@ package memories
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.longs.shouldBeInRange
 import io.kotest.matchers.shouldBe
-import java.security.MessageDigest
 import kotlin.random.Random
-
-internal object SimpleBlackHome {
-
-    private val hasher = MessageDigest.getInstance("SHA-1")
-
-    private fun consume(v: Long) {
-        // TODO Let's just try to fake this to JIT. So that we actually use the value for soemthing.
-        hasher.update(v.toByte())
-    }
-
-    fun consume(v: Any?) {
-        if (v == null) {
-            consume(0L)
-        } else if (v is Number) {
-            consume(v.toLong())
-        } else if (v.javaClass.isArray) {
-            // TODO consume one-by-one with specializations for each of the primitive types...
-            consume((v as Array<*>).contentToString())
-        } else {
-            consume(v.hashCode())
-        }
-    }
-
-}
 
 class MeasurementsTest: DescribeSpec({
 
@@ -70,7 +45,7 @@ class MeasurementsTest: DescribeSpec({
                 }
                 sum
             }
-            SimpleBlackHome.consume(res)
+            SimpleBlackHole.consume(res)
             val isPositive = measurement.getCPU() > 0
             isPositive shouldBe true
         }

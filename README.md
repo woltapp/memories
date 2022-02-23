@@ -12,11 +12,11 @@ GC logs
 
 ## Vocabulary
 - Working set: the amount of memory a program requires at some time interval. For example, handling HTTP rqeuest headers might have working set of a few kB but then as a response, server creates in-memory a big image of 5 MB before sending writing it to response. Here working set of one response is ~5 MB.
-- Garbage collection: Automated process of finding objects that are no logner in use and freeing their memory.
+- Garbage collection: Automated process of finding objects that are no longer in use and freeing their memory.
 - Allocation rate: How much memory we're using by the new objects we're creating within some timeframe. Usually measured as MB/s.
 - JMX: Java Management Extensions is technology  
 
-Two ways to look at memory: allocation rate & largest working set
+Two ways to look at memory: rate of allocating data & largest working set.
 
 ## What is garbage collection?
 
@@ -61,6 +61,17 @@ You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android
 - Add more memory for less frequent GC
 
 ## Tools
+
+### Garbage collection logs
+
+-Xlog:gc*:file=<file-path>
+
+-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps
+
+On Android, you can view the GC logs using [Logcat](https://developer.android.com/studio/debug/am-logcat#memory-logs).
+GC runs are only recorded when GC is seen slow: the application is not running on the background and there's over 5 ms
+pause or whole GC takes more than 100 ms. Thus, very frequent but short GC runs won't show up in the logs.
+
 
 ### jmap
 

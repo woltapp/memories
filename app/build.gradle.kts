@@ -58,6 +58,10 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     }
 }
 
+application {
+    this.applicationDefaultJvmArgs = listOf("-Xlog:gc*")
+}
+
 val runJol by tasks.creating(JavaExec::class) {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("org.openjdk.jol.Main")
