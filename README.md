@@ -12,9 +12,11 @@ GC logs
 
 ## Vocabulary
 - Working set: the amount of memory a program requires at some time interval. For example, handling HTTP rqeuest headers might have working set of a few kB but then as a response, server creates in-memory a big image of 5 MB before sending writing it to response. Here working set of one response is ~5 MB.
-- Garbage collection: Automated process of finding objects that are no longer in use and freeing their memory.
+- Garbage collection: Automated process of finding objects that are no longer in use and freeing their memory. **GC** from now on.
 - Allocation rate: How much memory we're using by the new objects we're creating within some timeframe. Usually measured as MB/s.
-- JMX: Java Management Extensions is technology  
+- Heap: The amount of memory available for application data. This is strictly smaller than memory size of the whole process.
+- JMX: Java Management Extensions is technology for both observing and commanding JVM.
+- Reachable: Object that is still in use in the program and won't be collected by GC. Either by design or by bug.
 
 Two ways to look at memory: rate of allocating data & largest working set.
 
@@ -25,22 +27,34 @@ Two ways to look at memory: rate of allocating data & largest working set.
 - TODO What are root sets, an image + explanation
 
 ## Basic error cases
+Problems with memory on garbage-collected runtimes such as JVM and ART can be split into two:
+ * We don't have enough memory to do all the things we want
+ * We're creating and abandoning a lot of things and GC has to do more work to clean after us.
 
 ### Running out of memory
 
-In order to get the dreaded `java.lang.OutOfMemoryError`, our _working set_ needs to be 
+In theory, our largest _working set_ should be a big as the amount of memory we've given to the runtime. If we go past
+that, we'll get the dreaded `java.lang.OutOfMemoryError`. Due to various issues related to actual implementation choices
+(fragmentation, generation sizes, humongous allocations), we'll always get this earlier.
 
-#### Memory Leaks
-- Leak Canary can help identifying leaks with Android
+When does one get OOM on ART?
+
+#### What to do?
+Identify potential culprits using [jmap](#jmap) and [Eclipse Memory Analyzer](#eclipse-memory-analyzer). If objects that
+keep the memory are legitimate, then it's a case of too big working set for the given heap and choices are to increase
+the heap size or slim the objects
+
+The other case is memory leak. We might be, for example, keeping some map in a thread-local variable even though it was
+supposed to be cleared after each request. 
+
+TODO: What is big object, what is shallow and deep size, what is dominator object?
 
 ### Too much time spent in GC 
 
 You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android, you should get something similar (TODO message here).
 
 #### How do we verify this?
-- Check GC logs
-  - How do we read these? TODO for a link to understanding JVM 9+ format 
-  - How does ART 
+- Check GC logs (see [Garbage collection logs](#garbage-collection-logs) )
 - Check JMX GC indicators (less accurate)
 - 
 
@@ -64,10 +78,16 @@ You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android
 
 ### Garbage collection logs
 
-On JVM 9+, use `-Xlog:gc*:file=<gc-file-path>`
--Xlog:gc*:file=<file-path>
-
--verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps
+On JVM, first thing to do is to enable GC logs. On JVM 9+, use `-Xlog:gc*:file=<GC-FILE-PATH>` and with earlier JVM
+versions tihs  dependent on the implementation. On OpenJDK < Java 9 use the following switches:
+```
+-verbose:gc
+-Xlog:gc:<GC-FILE-PATH>
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+-XX:+PrintGCDateStamps
+-XX:+PrintGCApplicationStoppedTime`
+```
 
 On Android, you can view the GC logs using [Logcat](https://developer.android.com/studio/debug/am-logcat#memory-logs).
 GC runs are only recorded when GC is seen slow: the application is not running on the background and there's over 5 ms
@@ -76,13 +96,24 @@ pause or whole GC takes more than 100 ms. Thus, very frequent but short GC runs 
 
 ### jmap
 
-For taking snapshots of heap, or heap dumps as they're more commonly called, command line tool `jmap` can be used.
+For looking into memory usage of a JVM, we can use `jmap` . I can give both a coarse-grained look at the heap, showing
+what classes are taking the most memory and a more fine-grained look by taking snapshots of the heap.
+
+For coarse-grained look, run `jmap -histo <PID>`. This can give you insights like "we have a lot of strings", but won't
+tell you why that is. Sometimes seeing the classes with most instances is enough to explain why we're using more memory
+than expected.
+
+To be able to figure out why better, it's better to take snapshot of the heap (usually called heap dumps).
+
 To dump all objects that are still reachable, that is objects that GC would not free:
 ```
 jmap -dump:live,format=b,file=heap_dump_$(date "+%Y%m%d_%H%M%S").bin <PID>
 ```
 Change `live` to `all` to dump all objects. This is rarely needed, but is useful when trying to figure out issues
 related to [`Reference`s](#references).
+
+This heap dump can then be analyzed using [Eclipse Memory Analyzer](#eclipse-memory-analyzer) to find culprits for
+potential memory leaks.
 
 ### Java Mission Control
 
