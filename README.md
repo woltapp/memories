@@ -1,6 +1,12 @@
 # memories
 Links and description of tools together with a play project for exploring memory problems
 
+## Included code
+
+Code in this repository is explained [here](included_code.md)
+
+## Tools to go through
+
 Tools:
 jmap
 Android Profiler
