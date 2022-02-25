@@ -39,9 +39,9 @@ Problems with memory on garbage-collected runtimes such as JVM and ART can be sp
 
 ### Running out of memory
 
-In theory, our largest _working set_ should be a big as the amount of memory we've given to the runtime. If we go past
-that, we'll get the dreaded `java.lang.OutOfMemoryError`. Due to various issues related to actual implementation choices
-(fragmentation, generation sizes, humongous allocations), we'll always get this earlier.
+In theory, our largest possible _working set_ should be a big as the amount of memory we've given to the runtime. If we
+go past that, we'll get the dreaded `java.lang.OutOfMemoryError`. Due to various issues related to actual implementation
+choices (fragmentation, generation sizes, humongous allocations), we'll always get this earlier.
 
 When does one get OOM on ART?
 
@@ -57,6 +57,22 @@ TODO: What is big object, what is shallow and deep size, what is dominator objec
 
 ### Too much time spent in GC 
 
+Many of the garbage collection algorithms have parts where they need to stop execution of the application altogether.
+During this stop-the-world pause nothing happens, no new frames get created, no input gets read and no response from a
+web server is written back. Occasional pauses of a few milliseconds are rarely noticeable, but if this happens more often,
+application suffers.
+
+#### Causes
+
+We might have case of [running out of memory](#running-out-of-memory) where GC is constantly trying to free memory
+without much success. This will most often be fatal eventually application runs out of memory. 
+
+The Other case is that  the application is allocating a lot of short-living objects that do get collected but cause GC
+to be run often. This is not fatal, but if application drops frames or a service takes long time to respond, it doesn't
+provide quality experience to users.
+
+
+prevents 
 You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android, you should get something similar (TODO message here).
 
 #### How do we verify this?
@@ -132,11 +148,17 @@ metrics can be recorded.
 ### Eclipse Memory Analyzer
 
 When you're trying to understand in more detail what actually is in your heap or where you might be leaking memory,
-[Eclipse Memory Analyzer](https://www.eclipse.org/mat/) is a handy tool.
+[Eclipse Memory Analyzer](https://www.eclipse.org/mat/) is a handy tool. 
 It will open any heap dump < 64 GB, but it might need large amount of heap for its initial processing of the dump.
 Processing creates indices on the disk that EMA can later-on use to load and analyze the dump faster.
 
-https://plumbr.io/blog/memory-leaks/solving-outofmemoryerror-dump-is-not-a-waste
+Main functionalities in it are leak detection and analyzing how much specific objects or classes hold memory. This can
+help us find that one `Map` that just happens to keep half of all objects alive. A good, although old introduction for
+the tool can be read [here](http://memoryanalyzer.blogspot.com/2008/05/automated-heap-dump-analysis-finding.html)
+
+### Android Profiler
+Android Profiler allows you to [capture and analyze heap dump](https://developer.android.com/studio/profile/memory-profiler#capture-heap-dump).
+It has seemingly same functionality as Eclipse Memory Analyzer and Java Mission Control with a more modern UI.  
 
 ### JMH
 
