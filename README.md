@@ -1,5 +1,5 @@
 # memories
-Links and description of tools together with a play project for exploring memory problems
+Links and descriptions of tools together with a play project for exploring JVM/ART memory problems
 
 ## Included code
 
