@@ -5,19 +5,8 @@ Links and descriptions of tools together with a play project for exploring JVM/A
 
 Code in this repository is explained [here](included_code.md)
 
-## Tools to go through
-
-Tools:
-jmap
-Android Profiler
-Eclipse Memory Analyzer
-Java Mission Control
-GC logs
-- Good settings for OpenJDK logs
--
-
 ## Vocabulary
-- Working set: the amount of memory a program requires at some time interval. For example, handling HTTP rqeuest headers might have working set of a few kB but then as a response, server creates in-memory a big image of 5 MB before sending writing it to response. Here working set of one response is ~5 MB.
+- Working set: the amount of memory a program requires during some operation. For example, handling HTTP request headers might have working set of a few kB but then as a response, server creates in-memory a big image of 5 MB before sending writing it to response. Here working set of one response is ~5 MB.
 - Garbage collection: Automated process of finding objects that are no longer in use and freeing their memory. **GC** from now on.
 - Allocation rate: How much memory we're using by the new objects we're creating within some timeframe. Usually measured as MB/s.
 - Heap: The amount of memory available for application data. This is strictly smaller than memory size of the whole process.
@@ -71,23 +60,16 @@ The Other case is that  the application is allocating a lot of short-living obje
 to be run often. This is not fatal, but if application drops frames or a service takes long time to respond, it doesn't
 provide quality experience to users.
 
-
-prevents 
-You can eventually get OOM with message "GC Overhead Limit Exceeded". On Android, you should get something similar (TODO message here).
-
 #### How do we verify this?
 - Check GC logs (see [Garbage collection logs](#garbage-collection-logs) )
 - Check JMX GC indicators (less accurate)
-- 
+- Profile allocations using Java Flight Recorder / Android Profiler to discover allocation rate.
 
 ### Other causes
 #### JVM
-- Metaspace
-- GC memory
+- Running out of Metaspace
 - "Direct memory" allocated through [ByteBuffer#allocateDirect](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html#allocateDirect(int)), which is used by some libraries like NIO.
 - Native memory on JVM
-  - Memory GC uses for bookkeeping
-  - 
 - ART probably has various resources
 
 
@@ -114,7 +96,6 @@ versions tihs  dependent on the implementation. On OpenJDK < Java 9 use the foll
 On Android, you can view the GC logs using [Logcat](https://developer.android.com/studio/debug/am-logcat#memory-logs).
 GC runs are only recorded when GC is seen slow: the application is not running on the background and there's over 5 ms
 pause or whole GC takes more than 100 ms. Thus, very frequent but short GC runs won't show up in the logs.
-
 
 ### jmap
 
@@ -145,6 +126,17 @@ open-source tool for both profiling and for observing JMX metrics in a JVM insta
 This can be used to do both ad-hoc profiling and exploring profiles that have been recorded earlier. Both CPU and memory
 metrics can be recorded.
 
+Profiling can and usually needs to be run without JMC GUI. This feature is called Java Flight Recorder (JFR), and it 
+used to require commercial license until Java 11 or so. So make sure that using it is fine with the JDK you're using.
+
+RedHat has a very [brief tutorial](https://developers.redhat.com/blog/2020/08/25/get-started-with-jdk-flight-recorder-in-openjdk-8u#demo__profiling_gc_allocation
+)
+and [official documentation](https://docs.oracle.com/javacomponents/jmc-5-4/jfr-runtime-guide/toc.htm) has the relevant
+command line switches. 
+
+It's one of the best ways to find out what parts of the application are allocating most and causing too much time being
+spent in GC.
+
 ### Eclipse Memory Analyzer
 
 When you're trying to understand in more detail what actually is in your heap or where you might be leaking memory,
@@ -171,6 +163,8 @@ piece of code you're benchmarking allocates. It's similar to what `Measurements.
 more heavy-weight and correct.
 
 ### JVM Object Layout
+Java Object Layout can be used to figure out how much memory a specific object actually uses. Aleksey Shipilëv, who's
+a great authority on JVM internals has a good blog post on [using it](https://shipilev.net/jvm/objects-inside-out/).
 
 ## References
 JDK `Reference`-class' subclasses together with [ReferenceQueue](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ref/ReferenceQueue.html) provide a way to implement caches and freeing of non-memory resources.
