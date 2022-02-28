@@ -148,7 +148,7 @@ metrics can be recorded.
 ### Eclipse Memory Analyzer
 
 When you're trying to understand in more detail what actually is in your heap or where you might be leaking memory,
-[Eclipse Memory Analyzer](https://www.eclipse.org/mat/) is a handy tool. 
+[Eclipse Memory Analyzer](https://www.eclipse.org/mat/) (EMA) is a handy tool. 
 It will open any heap dump < 64 GB, but it might need large amount of heap for its initial processing of the dump.
 Processing creates indices on the disk that EMA can later-on use to load and analyze the dump faster.
 
@@ -158,7 +158,10 @@ the tool can be read [here](http://memoryanalyzer.blogspot.com/2008/05/automated
 
 ### Android Profiler
 Android Profiler allows you to [capture and analyze heap dump](https://developer.android.com/studio/profile/memory-profiler#capture-heap-dump).
-It has seemingly same functionality as Eclipse Memory Analyzer and Java Mission Control with a more modern UI.  
+It has seemingly same functionality as Eclipse Memory Analyzer and Java Mission Control with a more modern UI.
+
+In case _EMA_ is needed, Android Profiler can export heap dump and the dump [can be converted](https://developer.android.com/studio/profile/memory-profiler#save-hprof)
+to a form that _EMA_ understands.
 
 ### JMH
 
