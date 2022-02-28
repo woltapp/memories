@@ -35,14 +35,14 @@ choices (fragmentation, generation sizes, humongous allocations), we'll always g
 When does one get OOM on ART?
 
 #### What to do?
-Identify potential culprits using [jmap](#jmap) and [Eclipse Memory Analyzer](#eclipse-memory-analyzer). If objects that
-keep the memory are legitimate, then it's a case of too big working set for the given heap and choices are to increase
-the heap size or slim the objects
+Identify potential culprits using [jmap](#jmap) and [Eclipse Memory Analyzer](#eclipse-memory-analyzer) (EMA). If
+objects kept in memory are legitimate, then it's a case of too big working set for the given heap and choices are to
+increase the heap size or slim the objects. 
+Use _EMA_ to figure out what are the objects keeping most of the memory and see if they all are needed or maybe some
+parts of the data could be replaced with primitive values (`IntArray` instead of `List<Int>`).
 
 The other case is memory leak. We might be, for example, keeping some map in a thread-local variable even though it was
 supposed to be cleared after each request. 
-
-TODO: What is big object, what is shallow and deep size, what is dominator object?
 
 ### Too much time spent in GC 
 
@@ -56,7 +56,7 @@ application suffers.
 We might have case of [running out of memory](#running-out-of-memory) where GC is constantly trying to free memory
 without much success. This will most often be fatal eventually application runs out of memory. 
 
-The Other case is that  the application is allocating a lot of short-living objects that do get collected but cause GC
+The other case is that  the application is allocating a lot of short-living objects that do get collected but cause GC
 to be run often. This is not fatal, but if application drops frames or a service takes long time to respond, it doesn't
 provide quality experience to users.
 
